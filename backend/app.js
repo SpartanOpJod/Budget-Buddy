@@ -18,9 +18,12 @@ const port = process.env.PORT || 5001;
 
 // ✅ Allowed origins for CORS
 const allowedOrigins = [
-  "http://localhost:3000", // For local testing
-  "https://budget-buddy-phi-pearl.vercel.app" // ✅ Your live frontend URL (NO trailing slash)
+  "http://localhost:3000",
+  "https://budget-buddy-frontend-olive.vercel.app",
+  "https://budget-buddy-frontend-git-main-spartanopjods-projects.vercel.app",
+  "https://budget-buddy-frontend-63vqm6qa7-spartanopjods-projects.vercel.app"
 ];
+
 
 // Middleware
 app.use(express.json());
