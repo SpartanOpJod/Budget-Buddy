@@ -16,11 +16,10 @@ connectDB();
 
 const port = process.env.PORT || 5001;
 
-// Allowed origins for CORS
+// ✅ Allowed origins for CORS
 const allowedOrigins = [
-  "http://localhost:3000", // ✅ Allow frontend on localhost
-  "https://main.d1sj7cd70hlter.amplifyapp.com",
-  "https://expense-tracker-app-three-beryl.vercel.app",
+  "http://localhost:3000", // For local testing
+  "https://budget-buddy-phi-pearl.vercel.app" // ✅ Your live frontend URL
 ];
 
 // Middleware
@@ -43,7 +42,7 @@ app.use("/api/v1", transactionRoutes);
 app.use("/api/auth", userRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("Backend is running successfully!");
 });
 
 // Start the server
