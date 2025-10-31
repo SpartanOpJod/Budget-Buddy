@@ -19,7 +19,7 @@ const port = process.env.PORT || 5001;
 // ✅ Allowed origins for CORS
 const allowedOrigins = [
   "http://localhost:3000", // For local testing
-  "https://budget-buddy-phi-pearl.vercel.app/" // ✅ Your live frontend URL
+  "https://budget-buddy-phi-pearl.vercel.app" // ✅ Your live frontend URL (NO trailing slash)
 ];
 
 // Middleware
@@ -42,7 +42,7 @@ app.use("/api/v1", transactionRoutes);
 app.use("/api/auth", userRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Backend is running successfully!");
+  res.send("✅ Budget Buddy Backend is running successfully!");
 });
 
 // Start the server
