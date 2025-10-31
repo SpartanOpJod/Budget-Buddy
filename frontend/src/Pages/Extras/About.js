@@ -42,7 +42,7 @@ const About = () => {
             <div className="mt-4">
               <Button
                 variant="warning"
-                href="https://github.com/yourusername/budget-buddy"
+                href="https://github.com/SpartanOpJod/Budget-Buddy"
                 target="_blank"
                 style={{ marginRight: "10px" }}
               >
@@ -51,7 +51,7 @@ const About = () => {
 
               <Button
                 variant="outline-light"
-                href="https://github.com/yourusername/budget-buddy/blob/main/README.md"
+                href="https://github.com/SpartanOpJod/Budget-Buddy/blob/main/README.md"
                 target="_blank"
               >
                 🧾 Read User Guide

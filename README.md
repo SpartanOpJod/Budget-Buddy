@@ -1,6 +1,6 @@
 💰 Budget Buddy – Personal Finance & Expense Tracker (MERN Stack)
 🌐 Live Website (after deployment): [Your Vercel Link]
-💻 GitHub Repository: https://github.com/aryansri07/budget-buddy
+💻 GitHub Repository: https://github.com/SpartanOpJod/Budget-Buddy
 🧾 Project Description
 
 Budget Buddy is a modern and user-friendly web application that helps individuals track, manage, and analyze their expenses efficiently.
@@ -49,7 +49,7 @@ Deployment: Vercel (Frontend), Render/MongoDB Atlas (Backend & DB)
 
 ⚙️ Setup & Installation
 1️⃣ Clone the repository
-git clone https://github.com/aryansri07/budget-buddy.git
+git clone https://github.com/SpartanOpJod/Budget-Buddy.git
 
 2️⃣ Install dependencies
 
@@ -108,4 +108,4 @@ Budget-Buddy/
 
 👤 Developed by: Aryan Srivastava
 🔗 LinkedIn Profile:https://www.linkedin.com/in/aryan-srivastava-29a9a031a/
-🌐 GitHub: https://github.com/aryansri07
+🌐 GitHub: https://github.com/SpartanOpJod
