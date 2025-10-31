@@ -1,4 +1,4 @@
-const host = "http://localhost:5001";  // ✅ Use the local backend
+const host = "https://budget-buddy-backend-2qh7.onrender.com";
 
 // const host = "http://localhost:5000";
 export const setAvatarAPI = `${host}/api/auth/setAvatar`;
