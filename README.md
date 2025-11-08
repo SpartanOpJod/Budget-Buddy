@@ -1,5 +1,5 @@
 💰 Budget Buddy – Personal Finance & Expense Tracker (MERN Stack)
-🌐 Live Website (after deployment): [Your Vercel Link]
+🌐 Live Website : https://budget-buddy-frontend-git-main-spartanopjods-projects.vercel.app/
 💻 GitHub Repository: https://github.com/SpartanOpJod/Budget-Buddy
 🧾 Project Description
 
