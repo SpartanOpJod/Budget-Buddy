@@ -106,6 +106,8 @@ Budget-Buddy/
 	
 📬 Contact
 
-👤 Developed by: Aryan Srivastava
+👤 Developed by: Aryan Srivastava 
+
 🔗 LinkedIn Profile:https://www.linkedin.com/in/aryan-srivastava-29a9a031a/
+
 🌐 GitHub: https://github.com/SpartanOpJod
