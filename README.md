@@ -1,6 +1,9 @@
-💰 Budget Buddy – Personal Finance & Expense Tracker (MERN Stack)
+💰 Budget Buddy – Personal Finance & Expense Tracker (MERN Stack)  
+
 🌐 Live Website : https://budget-buddy-frontend-git-main-spartanopjods-projects.vercel.app/
+
 💻 GitHub Repository: https://github.com/SpartanOpJod/Budget-Buddy
+
 🧾 Project Description
 
 Budget Buddy is a modern and user-friendly web application that helps individuals track, manage, and analyze their expenses efficiently.
