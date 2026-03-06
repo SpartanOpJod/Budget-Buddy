@@ -1,19 +1,19 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const connectDB = async () => {
+  if (!process.env.MONGO_URI) {
+    throw new Error("MONGO_URI is not set");
+  }
+
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 15000, // prevent Vercel timeouts
+      serverSelectionTimeoutMS: 15000,
     });
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`[mongo] Connected: ${conn.connection.host}`);
+    return conn;
   } catch (error) {
-    console.error("❌ MongoDB Connection Failed:", error.message);
-    process.exit(1);
+    console.error(`[mongo] Connection failed: ${error.message}`);
+    throw error;
   }
 };
 

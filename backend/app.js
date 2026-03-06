@@ -9,46 +9,62 @@ import transactionRoutes from "./Routers/Transactions.js";
 import userRoutes from "./Routers/userRouter.js";
 
 dotenv.config();
+
+const requiredEnvVars = ["MONGO_URI"];
+const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
+
+if (missingEnvVars.length > 0) {
+  console.error(
+    `[startup] Missing required environment variables: ${missingEnvVars.join(", ")}`
+  );
+  process.exit(1);
+}
+
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+const vercelFrontend =
+  "https://budget-buddy-frontend-git-main-spartanopjods-projects.vercel.app";
 
-const port = process.env.PORT || 5001;
-
-// ✅ Allowed origins for CORS
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://budget-buddy-frontend-olive.vercel.app",
-  "https://budget-buddy-frontend-git-main-spartanopjods-projects.vercel.app",
-  "https://budget-buddy-frontend-63vqm6qa7-spartanopjods-projects.vercel.app"
-];
+  vercelFrontend,
+  ...(process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim())
+    : []),
+].filter(Boolean);
 
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-// Middleware
+console.log("[startup] Connecting to MongoDB...");
+await connectDB();
+
+const port = Number(process.env.PORT) || 5001;
+
 app.use(express.json());
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  })
-);
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 app.use(morgan("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Routes
-app.use("/api/v1", transactionRoutes);
+// API routes
 app.use("/api/auth", userRoutes);
+app.use("/api/transactions", transactionRoutes);
+
+// Backward compatibility for existing clients still using /api/v1.
+app.use("/api/v1", transactionRoutes);
 
 app.get("/", (req, res) => {
-  res.send("✅ Budget Buddy Backend is running successfully!");
+  res.send("Budget Buddy Backend is running successfully.");
 });
 
-// Start the server
 app.listen(port, "0.0.0.0", () => {
-  console.log(`✅ Server is live and listening on port ${port}`);
+  console.log(`[startup] Server listening on port ${port}`);
+  console.log(`[startup] CORS allowed origins: ${allowedOrigins.join(", ")}`);
 });
