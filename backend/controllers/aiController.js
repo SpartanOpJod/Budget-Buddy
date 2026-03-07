@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
 const normalizeType = (value = "") => String(value).toLowerCase().trim();
@@ -134,32 +136,38 @@ export const generateInsightsController = async (req, res) => {
     const expenseSummary = summarizeExpensesByCategory(transactions);
     const trends = calculateTrends(transactions);
 
-    const response = await fetch(OPENAI_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You provide personal finance analysis. Always return valid JSON with keys insights and suggestions.",
+    let data;
+    try {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You provide personal finance analysis. Always return valid JSON with keys insights and suggestions.",
+            },
+            {
+              role: "user",
+              content: buildPrompt({ expenseSummary, trends }),
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           },
-          {
-            role: "user",
-            content: buildPrompt({ expenseSummary, trends }),
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      const errorText = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
@@ -167,7 +175,6 @@ export const generateInsightsController = async (req, res) => {
       });
     }
 
-    const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || "";
     const parsed = parseAssistantJson(content);
 
