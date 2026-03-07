@@ -7,6 +7,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import transactionRoutes from "./Routers/Transactions.js";
 import userRoutes from "./Routers/userRouter.js";
+import aiRoutes from "./Routers/aiRouter.js";
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // API routes
 app.use("/api/auth", userRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Backward compatibility for existing clients still using /api/v1.
 app.use("/api/v1", transactionRoutes);

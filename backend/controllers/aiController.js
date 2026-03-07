@@ -175,13 +175,8 @@ export const generateInsightsController = async (req, res) => {
     const suggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
 
     return res.status(200).json({
-      success: true,
       insights,
       suggestions,
-      meta: {
-        expenseSummary,
-        trends,
-      },
     });
   } catch (err) {
     return res.status(500).json({
