@@ -4,7 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Container } from "react-bootstrap";
 // import loading from "../../assets/loader.gif";
 import "./home.css";
-import { addTransaction, getTransactions } from "../../utils/ApiRequest";
+import {
+  addTransaction,
+  getTransactions,
+  predictCategoryAPI,
+} from "../../utils/ApiRequest";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -39,6 +43,8 @@ const Home = () => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [view, setView] = useState("table");
+  const [isPredictingCategory, setIsPredictingCategory] = useState(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
 
   const handleStartChange = (date) => {
     setStartDate(date);
@@ -80,7 +86,12 @@ const Home = () => {
   });
 
   const handleChange = (e) => {
-    setValues({ ...values, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setValues((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "category") {
+      setCategoryTouched(Boolean(value));
+    }
   };
 
   const handleChangeFrequency = (e) => {
@@ -106,6 +117,7 @@ const Home = () => {
       !transactionType
     ) {
       toast.error("Please enter all the fields", toastOptions);
+      return;
     }
     setLoading(true);
 
@@ -122,6 +134,15 @@ const Home = () => {
     if (data.success === true) {
       toast.success(data.message, toastOptions);
       handleClose();
+      setValues({
+        title: "",
+        amount: "",
+        description: "",
+        category: "",
+        date: "",
+        transactionType: "",
+      });
+      setCategoryTouched(false);
       setRefresh(!refresh);
     } else {
       toast.error(data.message, toastOptions);
@@ -136,6 +157,38 @@ const Home = () => {
     setEndDate(null);
     setFrequency("7");
   };
+
+  useEffect(() => {
+    const title = values.title?.trim();
+
+    if (!title || categoryTouched) {
+      setIsPredictingCategory(false);
+      return undefined;
+    }
+
+    let ignore = false;
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsPredictingCategory(true);
+        const { data } = await axios.post(predictCategoryAPI, { title });
+
+        if (!ignore && data?.success && data?.category) {
+          setValues((prev) => ({ ...prev, category: data.category }));
+        }
+      } catch {
+        // Silently ignore prediction failures to avoid blocking transaction creation.
+      } finally {
+        if (!ignore) {
+          setIsPredictingCategory(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timeoutId);
+    };
+  }, [values.title, categoryTouched]);
 
     const generatePDF = (transactions) => {
   if (!transactions || transactions.length === 0) {
@@ -313,7 +366,7 @@ doc.save("BudgetBuddy_Report.pdf");
                           name="title"
                           type="text"
                           placeholder="Enter Transaction Name"
-                          value={values.name}
+                          value={values.title}
                           onChange={handleChange}
                         />
                       </Form.Group>
@@ -348,6 +401,11 @@ doc.save("BudgetBuddy_Report.pdf");
                           <option value="Transportation">Transportation</option>
                           <option value="Other">Other</option>
                         </Form.Select>
+                        <Form.Text className="text-muted">
+                          {isPredictingCategory
+                            ? "Predicting category from title..."
+                            : "Category is auto-predicted from title. You can override it manually."}
+                        </Form.Text>
                       </Form.Group>
 
                       <Form.Group className="mb-3" controlId="formDescription">

@@ -1,6 +1,26 @@
 import axios from "axios";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const CATEGORY_OPTIONS = [
+  "Groceries",
+  "Rent",
+  "Salary",
+  "Tip",
+  "Food",
+  "Medical",
+  "Utilities",
+  "Entertainment",
+  "Transportation",
+  "Other",
+];
+
+const normalizePredictedCategory = (value = "") => {
+  const normalized = String(value).trim().toLowerCase();
+  const matchedCategory = CATEGORY_OPTIONS.find(
+    (category) => category.toLowerCase() === normalized
+  );
+  return matchedCategory || "Other";
+};
 
 const normalizeType = (value = "") => String(value).toLowerCase().trim();
 
@@ -112,6 +132,82 @@ const parseAssistantJson = (text = "") => {
       }
     }
     return null;
+  }
+};
+
+export const predictCategoryController = async (req, res) => {
+  try {
+    const title = String(req.body?.title || "").trim();
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "`title` is required",
+      });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "OPENAI_API_KEY is not configured",
+      });
+    }
+
+    let data;
+    try {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                "You classify a transaction title into one category.",
+                `Allowed categories: ${CATEGORY_OPTIONS.join(", ")}.`,
+                'Return JSON only in this exact shape: {"category":"<one allowed category>"}',
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: `Transaction title: "${title}"`,
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      const errorText = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message;
+      return res.status(502).json({
+        success: false,
+        message: "OpenAI request failed",
+        details: errorText,
+      });
+    }
+
+    const content = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAssistantJson(content);
+    const category = normalizePredictedCategory(parsed?.category);
+
+    return res.status(200).json({
+      success: true,
+      category,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
