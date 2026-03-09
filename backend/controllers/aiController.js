@@ -135,6 +135,143 @@ const parseAssistantJson = (text = "") => {
   }
 };
 
+const normalizeExpenseItem = (item) => {
+  if (typeof item === "number") {
+    return {
+      amount: Number(item) || 0,
+      category: "Other",
+      title: "",
+    };
+  }
+
+  return {
+    amount: Number(item?.amount) || 0,
+    category: item?.category ? String(item.category) : "Other",
+    title: item?.title ? String(item.title) : "",
+  };
+};
+
+const summarizeBudgetExpenses = (expenses = []) => {
+  const normalized = expenses.map(normalizeExpenseItem);
+  const totalExpense = normalized.reduce((acc, item) => acc + item.amount, 0);
+  const byCategory = {};
+
+  for (const item of normalized) {
+    byCategory[item.category] = (byCategory[item.category] || 0) + item.amount;
+  }
+
+  return {
+    totalExpense: Number(totalExpense.toFixed(2)),
+    byCategory: Object.entries(byCategory)
+      .map(([category, amount]) => ({
+        category,
+        amount: Number(amount.toFixed(2)),
+      }))
+      .sort((a, b) => b.amount - a.amount),
+  };
+};
+
+export const budgetAdvisorController = async (req, res) => {
+  try {
+    const income = Number(req.body?.income);
+    const expenses = req.body?.expenses;
+
+    if (!Number.isFinite(income) || income < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "`income` must be a non-negative number",
+      });
+    }
+
+    if (!Array.isArray(expenses)) {
+      return res.status(400).json({
+        success: false,
+        message: "`expenses` must be an array",
+      });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "OPENAI_API_KEY is not configured",
+      });
+    }
+
+    const expenseSummary = summarizeBudgetExpenses(expenses);
+
+    let data;
+    try {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                "You are a personal finance advisor.",
+                "Return valid JSON only with keys:",
+                "recommended_budget (object), saving_tips (array of strings).",
+                "Do not include any extra keys.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                "Create a monthly budget recommendation and practical savings tips.",
+                `Income: ${income}`,
+                `Expense summary: ${JSON.stringify(expenseSummary)}`,
+                "Budget should be realistic and consistent with income.",
+                'Output format: {"recommended_budget":{},"saving_tips":[]}',
+              ].join("\n"),
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      const errorText = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message;
+      return res.status(502).json({
+        success: false,
+        message: "OpenAI request failed",
+        details: errorText,
+      });
+    }
+
+    const content = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAssistantJson(content) || {};
+    const recommended_budget =
+      parsed?.recommended_budget &&
+      typeof parsed.recommended_budget === "object" &&
+      !Array.isArray(parsed.recommended_budget)
+        ? parsed.recommended_budget
+        : {};
+    const saving_tips = Array.isArray(parsed?.saving_tips)
+      ? parsed.saving_tips.map((tip) => String(tip)).filter(Boolean)
+      : [];
+
+    return res.status(200).json({
+      recommended_budget,
+      saving_tips,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 export const predictCategoryController = async (req, res) => {
   try {
     const title = String(req.body?.title || "").trim();
