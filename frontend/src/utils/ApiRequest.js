@@ -14,3 +14,4 @@ export const editTransactions = `${API_URL}/api/transactions/updateTransaction`;
 export const deleteTransactions = `${API_URL}/api/transactions/deleteTransaction`;
 export const predictCategoryAPI = `${API_URL}/api/ai/predict-category`;
 export const parseTransactionTextAPI = `${API_URL}/api/ai/parse-transaction-text`;
+export const spendingPredictionAPI = `${API_URL}/api/ai/spending-prediction`;

@@ -197,6 +197,52 @@ const summarizeBudgetExpenses = (expenses = []) => {
   };
 };
 
+const monthIndexFromDate = (dateInput) => {
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.getUTCFullYear() * 12 + date.getUTCMonth();
+};
+
+const projectNextMonthSpending = (transactions = []) => {
+  const expenses = transactions.filter(
+    (tx) => normalizeType(tx?.transactionType) === "expense"
+  );
+
+  if (expenses.length === 0) {
+    return {};
+  }
+
+  const monthIndexes = expenses
+    .map((tx) => monthIndexFromDate(tx?.date))
+    .filter((monthIndex) => monthIndex !== null);
+
+  if (monthIndexes.length === 0) {
+    return {};
+  }
+
+  const minMonth = Math.min(...monthIndexes);
+  const maxMonth = Math.max(...monthIndexes);
+  const monthSpan = Math.max(maxMonth - minMonth + 1, 1);
+  const categoryTotals = {};
+
+  for (const tx of expenses) {
+    const category = normalizePredictedCategory(tx?.category);
+    const amount = Number(tx?.amount) || 0;
+    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+  }
+
+  const projectionEntries = Object.entries(categoryTotals)
+    .map(([category, total]) => [
+      category,
+      Number((total / monthSpan).toFixed(2)),
+    ])
+    .sort((a, b) => b[1] - a[1]);
+
+  return Object.fromEntries(projectionEntries);
+};
+
 export const budgetAdvisorController = async (req, res) => {
   try {
     const income = Number(req.body?.income);
@@ -377,6 +423,92 @@ export const parseTransactionTextController = async (req, res) => {
       category: normalizePredictedCategory(parsed?.category),
       type: normalizeTransactionType(parsed?.type),
       date: normalizeTransactionDate(parsed?.date),
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const spendingPredictionController = async (req, res) => {
+  try {
+    const transactions = req.body?.transactions;
+
+    if (!Array.isArray(transactions)) {
+      return res.status(400).json({
+        success: false,
+        message: "`transactions` must be an array",
+      });
+    }
+
+    const predictedSpending = projectNextMonthSpending(transactions);
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(200).json({
+        next_month_expected_spending: predictedSpending,
+        ai_explanation:
+          "AI explanation unavailable because OPENAI_API_KEY is not configured.",
+      });
+    }
+
+    let data;
+    try {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                "You are a finance assistant.",
+                "Explain a spending forecast that was computed using statistical monthly averages.",
+                "Return JSON with one key only: explanation.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                "Forecast input (next month expected spending per category):",
+                JSON.stringify(predictedSpending),
+                "Write a concise explanation (max 120 words), mention that this is based on historical monthly averages.",
+              ].join("\n"),
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      const errorText = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message;
+      return res.status(502).json({
+        success: false,
+        message: "OpenAI request failed",
+        details: errorText,
+      });
+    }
+
+    const content = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAssistantJson(content) || {};
+    const aiExplanation =
+      typeof parsed?.explanation === "string" && parsed.explanation.trim()
+        ? parsed.explanation.trim()
+        : "Forecast is based on average monthly spending by category from your previous transactions.";
+
+    return res.status(200).json({
+      next_month_expected_spending: predictedSpending,
+      ai_explanation: aiExplanation,
     });
   } catch (err) {
     return res.status(500).json({
