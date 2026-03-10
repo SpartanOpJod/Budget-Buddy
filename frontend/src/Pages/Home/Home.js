@@ -7,6 +7,7 @@ import "./home.css";
 import {
   addTransaction,
   getTransactions,
+  parseTransactionTextAPI,
   predictCategoryAPI,
 } from "../../utils/ApiRequest";
 import axios from "axios";
@@ -45,6 +46,8 @@ const Home = () => {
   const [view, setView] = useState("table");
   const [isPredictingCategory, setIsPredictingCategory] = useState(false);
   const [categoryTouched, setCategoryTouched] = useState(false);
+  const [naturalText, setNaturalText] = useState("");
+  const [isParsingText, setIsParsingText] = useState(false);
 
   const handleStartChange = (date) => {
     setStartDate(date);
@@ -143,6 +146,7 @@ const Home = () => {
         transactionType: "",
       });
       setCategoryTouched(false);
+      setNaturalText("");
       setRefresh(!refresh);
     } else {
       toast.error(data.message, toastOptions);
@@ -156,6 +160,40 @@ const Home = () => {
     setStartDate(null);
     setEndDate(null);
     setFrequency("7");
+  };
+
+  const handleParseText = async () => {
+    const text = naturalText.trim();
+    if (!text) {
+      toast.error("Enter a sentence to parse", toastOptions);
+      return;
+    }
+
+    try {
+      setIsParsingText(true);
+      const { data } = await axios.post(parseTransactionTextAPI, { text });
+
+      if (!data || typeof data !== "object") {
+        toast.error("Could not parse transaction text", toastOptions);
+        return;
+      }
+
+      const parsed = data;
+      setValues((prev) => ({
+        ...prev,
+        title: parsed.title || prev.title,
+        amount: parsed.amount || prev.amount,
+        category: parsed.category || prev.category,
+        transactionType: parsed.type || prev.transactionType,
+        date: parsed.date || prev.date,
+      }));
+      setCategoryTouched(Boolean(parsed.category));
+      toast.success("Transaction details parsed", toastOptions);
+    } catch {
+      toast.error("Failed to parse transaction text", toastOptions);
+    } finally {
+      setIsParsingText(false);
+    }
   };
 
   useEffect(() => {
@@ -360,6 +398,27 @@ doc.save("BudgetBuddy_Report.pdf");
                   </Modal.Header>
                   <Modal.Body>
                     <Form>
+                      <Form.Group className="mb-3" controlId="formNaturalText">
+                        <Form.Label>Quick Add (Natural Language)</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          placeholder='Example: "I spent 500 on groceries today"'
+                          value={naturalText}
+                          onChange={(e) => setNaturalText(e.target.value)}
+                        />
+                        <div className="mt-2">
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            onClick={handleParseText}
+                            disabled={isParsingText}
+                          >
+                            {isParsingText ? "Parsing..." : "Parse Text"}
+                          </Button>
+                        </div>
+                      </Form.Group>
+
                       <Form.Group className="mb-3" controlId="formName">
                         <Form.Label>Title</Form.Label>
                         <Form.Control

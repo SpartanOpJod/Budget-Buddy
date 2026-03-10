@@ -22,6 +22,32 @@ const normalizePredictedCategory = (value = "") => {
   return matchedCategory || "Other";
 };
 
+const normalizeTransactionType = (value = "") => {
+  const normalized = String(value).toLowerCase().trim();
+  if (normalized === "credit" || normalized === "income") {
+    return "credit";
+  }
+  return "expense";
+};
+
+const normalizeTransactionDate = (value = "") => {
+  const fallback = new Date().toISOString().slice(0, 10);
+  if (!value) {
+    return fallback;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    return String(value);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
 const normalizeType = (value = "") => String(value).toLowerCase().trim();
 
 const toMonthKey = (dateInput) => {
@@ -263,6 +289,94 @@ export const budgetAdvisorController = async (req, res) => {
     return res.status(200).json({
       recommended_budget,
       saving_tips,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const parseTransactionTextController = async (req, res) => {
+  try {
+    const text = String(req.body?.text || "").trim();
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "`text` is required",
+      });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "OPENAI_API_KEY is not configured",
+      });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    let data;
+
+    try {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                "Convert user transaction text into structured JSON.",
+                "Allowed categories:",
+                CATEGORY_OPTIONS.join(", "),
+                "Type must be either `expense` or `credit`.",
+                "Date must be YYYY-MM-DD.",
+                "Return JSON only with keys: title, amount, category, type, date.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                `Today is ${today}.`,
+                `Input text: "${text}"`,
+                'Output format: {"title":"","amount":"","category":"","type":"","date":""}',
+              ].join("\n"),
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        }
+      );
+      data = response.data;
+    } catch (error) {
+      const errorText = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message;
+      return res.status(502).json({
+        success: false,
+        message: "OpenAI request failed",
+        details: errorText,
+      });
+    }
+
+    const content = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAssistantJson(content) || {};
+    const amountValue = Number(parsed?.amount);
+
+    return res.status(200).json({
+      title: String(parsed?.title || text).trim(),
+      amount: Number.isFinite(amountValue) && amountValue > 0 ? String(amountValue) : "",
+      category: normalizePredictedCategory(parsed?.category),
+      type: normalizeTransactionType(parsed?.type),
+      date: normalizeTransactionDate(parsed?.date),
     });
   } catch (err) {
     return res.status(500).json({
