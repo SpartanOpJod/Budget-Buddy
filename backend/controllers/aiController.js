@@ -131,16 +131,18 @@ const buildPrompt = ({ expenseSummary, trends }) => {
   return [
     "You are a personal finance assistant.",
     "Analyze the provided transaction aggregates and trends.",
-    "Return concise, practical advice in JSON format:",
-    '{"insights":"short paragraph","suggestions":["actionable item 1","actionable item 2"]}',
+    "Return concise, practical advice in JSON format with this exact structure:",
+    '{"spending_insights":"short paragraph","budget_suggestions":["item"],"category_warnings":["item"],"saving_tips":["item"]}',
     "",
     `Expense summary by category: ${JSON.stringify(expenseSummary)}`,
     `Trend data: ${JSON.stringify(trends)}`,
     "",
     "Rules:",
-    "- Keep insights under 120 words.",
-    "- Provide 3 to 5 suggestions.",
-    "- Suggestions must be specific and measurable.",
+    "- Keep spending_insights under 120 words.",
+    "- Provide 2 to 4 budget_suggestions.",
+    "- Provide 2 to 4 category_warnings.",
+    "- Provide 3 to 5 saving_tips.",
+    "- Keep list items specific and measurable.",
   ].join("\n");
 };
 
@@ -627,7 +629,7 @@ export const generateInsightsController = async (req, res) => {
             {
               role: "system",
               content:
-                "You provide personal finance analysis. Always return valid JSON with keys insights and suggestions.",
+                "You provide personal finance analysis. Always return valid JSON with keys spending_insights, budget_suggestions, category_warnings, saving_tips.",
             },
             {
               role: "user",
@@ -657,12 +659,31 @@ export const generateInsightsController = async (req, res) => {
     const content = data?.choices?.[0]?.message?.content || "";
     const parsed = parseAssistantJson(content);
 
-    const insights = typeof parsed?.insights === "string" ? parsed.insights : "No insights generated.";
-    const suggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
+    const spendingInsights =
+      typeof parsed?.spending_insights === "string"
+        ? parsed.spending_insights
+        : typeof parsed?.insights === "string"
+          ? parsed.insights
+          : "No insights generated.";
+    const budgetSuggestions = Array.isArray(parsed?.budget_suggestions)
+      ? parsed.budget_suggestions
+      : [];
+    const categoryWarnings = Array.isArray(parsed?.category_warnings)
+      ? parsed.category_warnings
+      : [];
+    const savingTips = Array.isArray(parsed?.saving_tips)
+      ? parsed.saving_tips
+      : Array.isArray(parsed?.suggestions)
+        ? parsed.suggestions
+        : [];
 
     return res.status(200).json({
-      insights,
-      suggestions,
+      spending_insights: spendingInsights,
+      budget_suggestions: budgetSuggestions,
+      category_warnings: categoryWarnings,
+      saving_tips: savingTips,
+      insights: spendingInsights,
+      suggestions: [...budgetSuggestions, ...savingTips],
     });
   } catch (err) {
     return res.status(500).json({

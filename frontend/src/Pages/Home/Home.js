@@ -20,6 +20,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import Analytics from "./Analytics";
+import AIInsightsPanel from "./AIInsightsPanel";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -578,6 +579,7 @@ doc.save("BudgetBuddy_Report.pdf");
                 <Analytics transactions={transactions} user={cUser} />
               </>
             )}
+            <AIInsightsPanel transactions={transactions} />
             <ToastContainer />
           </Container>
         </>
