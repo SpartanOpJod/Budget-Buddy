@@ -1,6 +1,7 @@
-import axios from "axios";
-
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+import {
+  createOpenAIChatCompletion,
+  hasOpenAIKey,
+} from "../utils/openai.js";
 const CATEGORY_OPTIONS = [
   "Groceries",
   "Rent",
@@ -264,7 +265,7 @@ export const budgetAdvisorController = async (req, res) => {
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAIKey()) {
       return res.status(500).json({
         success: false,
         message: "OPENAI_API_KEY is not configured",
@@ -275,50 +276,36 @@ export const budgetAdvisorController = async (req, res) => {
 
     let data;
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          temperature: 0.3,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "You are a personal finance advisor.",
-                "Return valid JSON only with keys:",
-                "recommended_budget (object), saving_tips (array of strings).",
-                "Do not include any extra keys.",
-              ].join(" "),
-            },
-            {
-              role: "user",
-              content: [
-                "Create a monthly budget recommendation and practical savings tips.",
-                `Income: ${income}`,
-                `Expense summary: ${JSON.stringify(expenseSummary)}`,
-                "Budget should be realistic and consistent with income.",
-                'Output format: {"recommended_budget":{},"saving_tips":[]}',
-              ].join("\n"),
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      data = await createOpenAIChatCompletion({
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You are a personal finance advisor.",
+              "Return valid JSON only with keys:",
+              "recommended_budget (object), saving_tips (array of strings).",
+              "Do not include any extra keys.",
+            ].join(" "),
           },
-        }
-      );
-      data = response.data;
+          {
+            role: "user",
+            content: [
+              "Create a monthly budget recommendation and practical savings tips.",
+              `Income: ${income}`,
+              `Expense summary: ${JSON.stringify(expenseSummary)}`,
+              "Budget should be realistic and consistent with income.",
+              'Output format: {"recommended_budget":{},"saving_tips":[]}',
+            ].join("\n"),
+          },
+        ],
+      });
     } catch (error) {
-      const errorText = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
-        details: errorText,
+        details: error.details || error.message,
       });
     }
 
@@ -357,7 +344,7 @@ export const parseTransactionTextController = async (req, res) => {
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAIKey()) {
       return res.status(500).json({
         success: false,
         message: "OPENAI_API_KEY is not configured",
@@ -368,50 +355,36 @@ export const parseTransactionTextController = async (req, res) => {
     let data;
 
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          temperature: 0,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "Convert user transaction text into structured JSON.",
-                "Allowed categories:",
-                CATEGORY_OPTIONS.join(", "),
-                "Type must be either `expense` or `credit`.",
-                "Date must be YYYY-MM-DD.",
-                "Return JSON only with keys: title, amount, category, type, date.",
-              ].join(" "),
-            },
-            {
-              role: "user",
-              content: [
-                `Today is ${today}.`,
-                `Input text: "${text}"`,
-                'Output format: {"title":"","amount":"","category":"","type":"","date":""}',
-              ].join("\n"),
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      data = await createOpenAIChatCompletion({
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "Convert user transaction text into structured JSON.",
+              "Allowed categories:",
+              CATEGORY_OPTIONS.join(", "),
+              "Type must be either `expense` or `credit`.",
+              "Date must be YYYY-MM-DD.",
+              "Return JSON only with keys: title, amount, category, type, date.",
+            ].join(" "),
           },
-        }
-      );
-      data = response.data;
+          {
+            role: "user",
+            content: [
+              `Today is ${today}.`,
+              `Input text: "${text}"`,
+              'Output format: {"title":"","amount":"","category":"","type":"","date":""}',
+            ].join("\n"),
+          },
+        ],
+      });
     } catch (error) {
-      const errorText = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
-        details: errorText,
+        details: error.details || error.message,
       });
     }
 
@@ -447,7 +420,7 @@ export const spendingPredictionController = async (req, res) => {
 
     const predictedSpending = projectNextMonthSpending(transactions);
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAIKey()) {
       return res.status(200).json({
         next_month_expected_spending: predictedSpending,
         ai_explanation:
@@ -531,7 +504,7 @@ export const predictCategoryController = async (req, res) => {
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAIKey()) {
       return res.status(500).json({
         success: false,
         message: "OPENAI_API_KEY is not configured",
