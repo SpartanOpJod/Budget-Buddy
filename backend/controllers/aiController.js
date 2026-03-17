@@ -430,47 +430,33 @@ export const spendingPredictionController = async (req, res) => {
 
     let data;
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          temperature: 0.3,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "You are a finance assistant.",
-                "Explain a spending forecast that was computed using statistical monthly averages.",
-                "Return JSON with one key only: explanation.",
-              ].join(" "),
-            },
-            {
-              role: "user",
-              content: [
-                "Forecast input (next month expected spending per category):",
-                JSON.stringify(predictedSpending),
-                "Write a concise explanation (max 120 words), mention that this is based on historical monthly averages.",
-              ].join("\n"),
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      data = await createOpenAIChatCompletion({
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You are a finance assistant.",
+              "Explain a spending forecast that was computed using statistical monthly averages.",
+              "Return JSON with one key only: explanation.",
+            ].join(" "),
           },
-        }
-      );
-      data = response.data;
+          {
+            role: "user",
+            content: [
+              "Forecast input (next month expected spending per category):",
+              JSON.stringify(predictedSpending),
+              "Write a concise explanation (max 120 words), mention that this is based on historical monthly averages.",
+            ].join("\n"),
+          },
+        ],
+      });
     } catch (error) {
-      const errorText = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
-        details: errorText,
+        details: error.details || error.message,
       });
     }
 
@@ -513,43 +499,29 @@ export const predictCategoryController = async (req, res) => {
 
     let data;
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          temperature: 0,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "You classify a transaction title into one category.",
-                `Allowed categories: ${CATEGORY_OPTIONS.join(", ")}.`,
-                'Return JSON only in this exact shape: {"category":"<one allowed category>"}',
-              ].join(" "),
-            },
-            {
-              role: "user",
-              content: `Transaction title: "${title}"`,
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      data = await createOpenAIChatCompletion({
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You classify a transaction title into one category.",
+              `Allowed categories: ${CATEGORY_OPTIONS.join(", ")}.`,
+              'Return JSON only in this exact shape: {"category":"<one allowed category>"}',
+            ].join(" "),
           },
-        }
-      );
-      data = response.data;
+          {
+            role: "user",
+            content: `Transaction title: "${title}"`,
+          },
+        ],
+      });
     } catch (error) {
-      const errorText = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
-        details: errorText,
+        details: error.details || error.message,
       });
     }
 
@@ -580,7 +552,7 @@ export const generateInsightsController = async (req, res) => {
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAIKey()) {
       return res.status(500).json({
         success: false,
         message: "OPENAI_API_KEY is not configured",
@@ -592,40 +564,26 @@ export const generateInsightsController = async (req, res) => {
 
     let data;
     try {
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          temperature: 0.3,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You provide personal finance analysis. Always return valid JSON with keys spending_insights, budget_suggestions, category_warnings, saving_tips.",
-            },
-            {
-              role: "user",
-              content: buildPrompt({ expenseSummary, trends }),
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      data = await createOpenAIChatCompletion({
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You provide personal finance analysis. Always return valid JSON with keys spending_insights, budget_suggestions, category_warnings, saving_tips.",
           },
-        }
-      );
-      data = response.data;
+          {
+            role: "user",
+            content: buildPrompt({ expenseSummary, trends }),
+          },
+        ],
+      });
     } catch (error) {
-      const errorText = error?.response?.data
-        ? JSON.stringify(error.response.data)
-        : error.message;
       return res.status(502).json({
         success: false,
         message: "OpenAI request failed",
-        details: errorText,
+        details: error.details || error.message,
       });
     }
 
